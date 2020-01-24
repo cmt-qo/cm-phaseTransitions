@@ -2,7 +2,7 @@
 using namespace std;
 
 //lattice length
-const int L=8;
+const int L=20;
 
 //number of expectation values to be calculated per spin
 const int N_loops=3;
@@ -82,16 +82,16 @@ vector<double> add_random_field_I2D(vector<double> spinweights, double randfield
 
 
 
-//MC: returns expectation value of X-loop specified by 'weights' using the Metropolis-Hastings algorithm 
+//MC: returns expectation value of X-loop specified by 'weights' using the Metropolis-Hastings algorithm
 //IN: 'weights: vector of length (2L^2,3), weights[i,loop]=1 if sigma_z^i is included in the X-loop that is measured, 0 otherwise
-//spinweights: it is measured on ground state with field configuration 'spinweights' 
+//spinweights: it is measured on ground state with field configuration 'spinweights'
 //measured every messung*sweeps after thermalization time 'thermalize'
 //beta: field strength
 //index: helper index
 //IN/OUT: call-by-reference arguments 'wert1' and 'wert2', returning measured values along the Markov Chain to compute expectation value of X-loops
 vector<int> MC( double beta,int thermalize, vector<double> spinweights, mt19937 & gen_){
     //spin lattice, Markov chain flips spins on the lattice
-    vector<int> spins(2*L*L); 
+    vector<int> spins(2*L*L);
 
     //magnetization
     double M=0;
@@ -106,14 +106,14 @@ vector<int> MC( double beta,int thermalize, vector<double> spinweights, mt19937 
     if (gs==3){
       horizontalXloop=true;
       verticalXloop=true;}
-    for (int i=0; i<2*L*L; i++){  
-         spins[i]=1;  
+    for (int i=0; i<2*L*L; i++){
+         spins[i]=1;
          M+=spins[i];
           }
     if (horizontalXloop){
       for (int i=0; i<2*L; i++){  //non-contractible horizontal X-loop (in first row)
          if (i%2==0){
-           spins[i]=-spins[i]; 
+           spins[i]=-spins[i];
            M+=2*spins[i];}
          }
       }
@@ -122,37 +122,37 @@ vector<int> MC( double beta,int thermalize, vector<double> spinweights, mt19937 
         spins[2*L*j+1]=-spins[2*L*j+1];
         M+=2*spins[2*L*j+1];
         }
-      }       
-    
+      }
+
     unsigned int maxit=thermalize*L*L;
-     
-    
+
+
     for (int n=0; n<maxit; n++){
-        
+
         //choose random vertex to be flipped
         int x;
         x=distnx_(gen_);//random vertex x-coordinate
         int y;
         y=distnx_(gen_);//random vertex y-Koordinate
-        
+
         //calculate 'energy' difference when flipping the spins around the vertex specified by (x,y)
         double dE;
         int ym1,xp1;
         ym1=y-1;
         xp1=x+1;
-        
+
         if (y==0){
            ym1=L-1;}
         if (x==(L-1)){
            xp1=0;}
         int l1D, o1D, r1D, u1D;
-        
+
         l1D=get_index1D(x,ym1,1,L);
         o1D=get_index1D(x,y,0,L);
         r1D=get_index1D(x,y,1,L);
         u1D=get_index1D(xp1,y,0,L);
-        
-        dE=2.0*beta*(spins[l1D]*spinweights[l1D]+spins[o1D]*spinweights[o1D]+spins[r1D]*spinweights[r1D]+spins[u1D]*spinweights[u1D]);  
+
+        dE=2.0*beta*(spins[l1D]*spinweights[l1D]+spins[o1D]*spinweights[o1D]+spins[r1D]*spinweights[r1D]+spins[u1D]*spinweights[u1D]);
         //cout<<dE<<" ";
         double rnumber;
         rnumber=distu_(gen_);
@@ -181,7 +181,7 @@ double rdweights=rdweights_();
 random_device rd_seed;
 double seed_=rd_seed();
 
-//define field strengths of spin i, on which we measure expectation values and train, save field values as 'betas' 
+//define field strengths of spin i, on which we measure expectation values and train, save field values as 'betas'
 const int Tval=100;
 double betas[Tval];
 for (int i=0;i<100;i++){
@@ -192,14 +192,14 @@ for (int i=0;i<100;i++){
        betas[i]=betas[i-1]+0.01;
        }
    }
-  
+
 //parameters for Monte Carlo sampling
 unsigned int sweeps=500000;
 int messung=20;
 int thermalize=0.1*sweeps;
 
-//can increase NumMC for more training examples 
-const int NumMC=1;  
+//can increase NumMC for more training examples
+const int NumMC=1;
 for (int stateMC_i=0; stateMC_i<NumMC; stateMC_i++){
    //new variable to store field configuration in
    vector<double> spinweights(2*L*L);
@@ -253,14 +253,14 @@ for (int stateMC_i=0; stateMC_i<NumMC; stateMC_i++){
      }
 
    //#################################################################
-   
+
    ofstream file_b;
    ostringstream fileNameStream_b("");
    fileNameStream_b<<"betas.txt";
    string fileName_b=fileNameStream_b.str();
    file_b.open(fileName_b.c_str());
 
-   
+
 
    for(int i=0; i<Tval; i++){
       file_b<<betas[i]<<" ";}
@@ -277,42 +277,42 @@ for (int stateMC_i=0; stateMC_i<NumMC; stateMC_i++){
    file_a.open(fileName_a.c_str());
 
 
-   
+
    //store expectation values of stabilizers in 'expvalues'
    vector<vector<double> > spinconf(Tval,vector<double>(2*L*L)); //array fuer expvalues von loop fuer betas
-   
-   
+
+
    //------------------------------------------------------------------------------------------------------------
    //Monte Carlo: sampling
-   #pragma omp parallel for num_threads(4)   
+   #pragma omp parallel for num_threads(4)
    for (int i=0; i<Tval; i++){
           //cout<<i<<endl;
           //random number generators (inside parallelized loop, such that there is one generator for each thread)
           //random numbers for MC sampling
           mt19937 gen_;
-          Seed(gen_);   
+          Seed(gen_);
 
-          //random numbers to generate fieldconfigurations 
+          //random numbers to generate fieldconfigurations
           mt19937 genweights_;
           genweights_.seed(stateMC_i*Tval+i+rdweights+seed_);
 
           double beta_=betas[i];
           //##############################################################################
-          //create random field configuration with field strength beta_ on spin 'spini', random fields with magnitude smaller than maxbeta on all other fields  
+          //create random field configuration with field strength beta_ on spin 'spini', random fields with magnitude smaller than maxbeta on all other fields
           vector<double> spinweights2=spinweights;
           for(int spinweights_i=0; spinweights_i<2*L*L; spinweights_i++){
              spinweights2[spinweights_i]=spinweights2[spinweights_i]*beta_;}
-          //##############################################################################  
-          
+          //##############################################################################
+
 
           //helper variable
           int index=0;
 
           //run sampling process via Metropolis-Hastings algorithm
-          vector<int> spins=MC(1.0,thermalize, spinweights2, gen_);    
+          vector<int> spins=MC(1.0,thermalize, spinweights2, gen_);
           for (int sc_i=0; sc_i<2*L*L; sc_i++){
              spinconf[i][sc_i]=spins[sc_i];}
-          
+
           }
 
    //write sampled configurations (training data) into file
@@ -320,13 +320,12 @@ for (int stateMC_i=0; stateMC_i<NumMC; stateMC_i++){
      for(int i=0; i<2*L*L; i++){
         file_a<<spinconf[loop3_i][i]<<" ";}
      file_a<<endl;}
-     
+
 
    file_a.close();
-   //MC sampling up to here  
+   //MC sampling up to here
    //----------------------------------------------------------------------------------
    }
 
-              
- return 0;}
 
+ return 0;}

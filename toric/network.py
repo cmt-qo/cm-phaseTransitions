@@ -2,6 +2,9 @@ from __future__ import division
 from __future__ import absolute_import
 from __future__ import print_function
 
+import matplotlib
+matplotlib.use('Agg')
+
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,14 +13,14 @@ import numpy as np
 #tf.set_random_seed(6)
 #np.random.seed(3)
 
-L=8  #lattice size
+L=20  #lattice size
 
 # Hyper Parameters
 batch_size = 50
 LR = 0.00001 #0.00001         # learning rate
 N_TEST_IMG = 300
 index_in_epoch=0
-num_examples=59950
+num_examples=48950
 epochs_completed=0
 eval_size=50
 training_=False
@@ -57,6 +60,7 @@ def next_batch(batch_size,index_in_epoch_,epochs_completed_,train_data_, train_l
       index_in_epoch_ = batch_size
     end = index_in_epoch_
     return train_data_[start:end], train_labels_beta_[start:end], index_in_epoch_,epochs_completed_,train_data_,train_labels_beta_
+
 
     
 nbetas=100
@@ -120,6 +124,8 @@ if training_:
    eval_data=np.swapaxes(eval_data,2,3)
    eval_labels_beta=np.zeros((np.shape(eval_data)[0],1))
    eval_labels_beta[:,0]=np.loadtxt("train_data/eval_labels_beta.txt")
+   eval_accuracy_=[]
+   eval_accuracy_beta_=[]
    eval_loss=[]
    train_loss=[]
    train_lossstates=[]
@@ -138,9 +144,10 @@ if training_:
    eval_perclossbetasb=[]
       
    
+   print("hi")
    #tf.reset_default_graph()
    #saver.restore(sess, 'slstates_dense_k3/-49900')
-   for step in range(20000): #->evtl epochs hier schon drin, falls steps>size dataset 1200000
+   for step in range(10000): #->evtl epochs hier schon drin, falls steps>size dataset 1200000
        #print np.shape(logits_)
        
        b_x, b_y_beta, index_in_epoch,epochs_completed,train_data,train_labels_beta= next_batch(batch_size,index_in_epoch,epochs_completed,train_data, train_labels_beta)
@@ -155,6 +162,7 @@ if training_:
            beta_output_, loss2= sess.run([beta_output, loss], feed_dict={tf_x:eval_data, tf_y_beta:eval_labels_beta})
            #ybeta2_=np.reshape(ybeta2_,(eval_size,1))
            #accuracy =tf.metrics.accuracy(eval_labels,predictions_)
+           
            eval_loss.append(loss2)
            
 
@@ -162,26 +170,26 @@ if training_:
            saver.save(sess, 'checkpoints_new/', global_step=step)
            #print np.shape(decoded_data), np.shape(eval_labels)
            #print "eval accuracy: ", eval_accuracy_
-              
+       
+           
+       
    x=np.linspace(0,20000,np.shape(train_loss)[0])
    plt.figure()
    plt.plot(x,train_loss, label="train")
    plt.plot(x,eval_loss, label="eval")
-   plt.xlabel('training step')
-   plt.ylabel('loss')
    plt.legend(loc=1)
    plt.savefig("loss.png")
-   
+  
    
 else:
     tf.reset_default_graph()
-    saver.restore(sess, 'checkpoints/-19900')
-    pbetas_mean=np.zeros(200)
-    plabels_mean=np.zeros(200)
-    pdiv_mean=np.zeros(200)
+    saver.restore(sess, 'checkpoints/-9900')
+    pbetas_mean=np.zeros(100)
+    plabels_mean=np.zeros(100)
+    pdiv_mean=np.zeros(100)
     plt.figure()
     
-    num_predexamples=2000.0
+    num_predexamples=400
     for p_i in range(int(num_predexamples)):
       pdata=np.loadtxt('pred_data/pdata{}.txt'.format(p_i))
       pdata=np.reshape(pdata,(np.shape(pdata)[0],L,2,L))
@@ -192,16 +200,23 @@ else:
       pbetas=np.reshape(pbetas,(np.shape(plabels)))   
       pdiv=np.zeros(np.shape(plabels))
       deltabeta=(plabels[1]-plabels[0])
+      for i in range(np.shape(plabels)[0]):
+          if (i==0):
+            pdiv[i]=(pbetas[i+1]-pbetas[i])/deltabeta
+          else:
+            pdiv[i]=(pbetas[i]-pbetas[i-1])/deltabeta
       pbetas_mean+=pbetas
       plabels_mean+=plabels
-      
+      pdiv_mean+=pdiv
+      #plt.plot(plabels,pbetas,alpha=0.2)
+      #plt.plot(plabels,pdiv,alpha=0.2)
       
     pbetas_mean/=num_predexamples
     plabels_mean/=num_predexamples
     pdelta=-plabels_mean+pbetas_mean
 
     #nint: avoiding too spiky behaviour by enlarging interval between two betas
-    nint=6
+    nint=2
     pdeltadiv=np.zeros(np.shape(plabels)[0]//nint)
     print(np.shape(pdeltadiv))
     plab=np.zeros_like(pdeltadiv)
@@ -211,17 +226,17 @@ else:
             plab[i]=plabels_mean[nint*i]
           else:
             pdeltadiv[i]=(pdelta[nint*i]-pdelta[nint*(i-1)])/(nint*deltabeta)
-            plab[i]=plabels_mean[nint*i-nint//2]
+            plab[i]=plabels_mean[nint*i-1]
             
     pdiv_mean/=num_predexamples
     #plt.plot(plabels_mean,pdelta)
-    #plab=plab/1.2
     plt.plot(plab,pdeltadiv)
    
     b=np.argmax(pdeltadiv)
     print("Phase transition indicated by network is at beta=",plab[b]," (divergence of derivative).")
     #plt.plot(np.ones(20)*x[b],np.linspace(0,5,20))
     plt.xlabel("beta")
-    plt.ylabel('derivative')
+    plt.ylabel("derivative")
     plt.savefig("divergence.png")
+ 
     
